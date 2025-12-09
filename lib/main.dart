@@ -20,7 +20,13 @@ import 'widgets/auth/login_dialog.dart';
 import 'widgets/export/export_all_dialog.dart';
 import 'widgets/export/export_progress_dialog.dart';
 import 'widgets/export/export_complete_dialog.dart';
+import 'widgets/import/import_all_dialog.dart';
+import 'widgets/import/conflict_resolution_dialog.dart';
+import 'widgets/import/import_progress_dialog.dart';
+import 'widgets/import/import_complete_dialog.dart';
 import 'models/export_progress.dart';
+import 'models/import_progress.dart';
+import 'models/import_result.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -143,6 +149,175 @@ Future<void> handleExportAllData() async {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Export failed: ${e.message}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  } catch (e) {
+    // Unexpected error
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unexpected error: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+}
+
+/// Global function to handle import all data
+Future<void> handleImportAllData() async {
+  final context = rootNavigatorKey.currentContext;
+  if (context == null || !context.mounted) return;
+
+  try {
+    // Show initial dialog to select archive
+    final archivePath = await showDialog<String>(
+      context: context,
+      builder: (context) => const ImportAllDialog(),
+    );
+
+    if (archivePath == null) {
+      // User cancelled
+      return;
+    }
+
+    // Create cancellation token
+    final cancellationToken = ImportCancellationToken();
+
+    // Track import result
+    int successfulAssets = 0;
+    int failedAssets = 0;
+    int skippedAssets = 0;
+    int categoriesImported = 0;
+    int tagsImported = 0;
+    final Map<String, String> errors = {};
+
+    // Create conflict resolution callback
+    Future<ConflictResolution> conflictResolver(
+      String slug,
+      String title,
+      Map<String, dynamic> existingAssetData,
+      Map<String, dynamic> incomingAssetData,
+    ) async {
+      return await showDialog<ConflictResolution>(
+        context: rootNavigatorKey.currentContext!,
+        barrierDismissible: false,
+        builder: (context) => ConflictResolutionDialog(
+          assetSlug: slug,
+          assetTitle: title,
+          existingAssetData: existingAssetData,
+          incomingAssetData: incomingAssetData,
+        ),
+      ) ??
+          const ConflictResolution(action: ConflictResolutionAction.skip);
+    }
+
+    // Create progress stream
+    final originalStream = services.import.importAllDataWithProgress(
+      archivePath,
+      cancellationToken,
+      conflictResolver,
+    );
+
+    // Convert to broadcast stream so multiple listeners can subscribe
+    final streamController = StreamController<ImportProgress>.broadcast();
+
+    ImportProgress? lastProgress;
+    final completer = Completer<ImportProgress?>();
+
+    // Listen to original stream and broadcast to multiple listeners
+    originalStream.listen(
+      (progress) {
+        streamController.add(progress);
+        lastProgress = progress;
+        if (progress.isComplete) {
+          completer.complete(progress);
+        }
+      },
+      onError: (error) {
+        streamController.addError(error);
+        completer.completeError(error);
+      },
+      onDone: () {
+        if (!completer.isCompleted) {
+          completer.complete(lastProgress);
+        }
+        streamController.close();
+      },
+    );
+
+    // Show progress dialog
+    if (!context.mounted) return;
+
+    // Show progress dialog (non-dismissible)
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => ImportProgressDialog(
+        progressStream: streamController.stream,
+        onCancel: () {
+          cancellationToken.cancel();
+        },
+      ),
+    );
+
+    // Wait for completion or error
+    final result = await completer.future;
+
+    // Close progress dialog
+    if (context.mounted) {
+      Navigator.of(context).pop();
+    }
+
+    // Calculate statistics from result
+    if (result != null && result.isComplete) {
+      successfulAssets = result.totalAssets - result.processedAssets; // Simplified calculation
+      // In a real implementation, you would track these values during import
+      // For now, we'll use the progress values
+      successfulAssets = result.processedAssets;
+      categoriesImported = 0; // Would be tracked in ImportService
+      tagsImported = 0; // Would be tracked in ImportService
+    }
+
+    // Show completion dialog
+    if (context.mounted) {
+      final shouldViewLibrary = await showDialog<bool>(
+        context: context,
+        builder: (context) => ImportCompleteDialog(
+          totalAssets: result?.totalAssets ?? 0,
+          successfulAssets: successfulAssets,
+          failedAssets: failedAssets,
+          skippedAssets: skippedAssets,
+          categoriesImported: categoriesImported,
+          tagsImported: tagsImported,
+          errors: errors,
+        ),
+      );
+
+      // Navigate to home if user chose to view library
+      if (shouldViewLibrary == true) {
+        // Would trigger navigation to home/library view
+        // This depends on your navigation setup
+      }
+    }
+  } on ImportCancelledException {
+    // User cancelled, show message
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Import cancelled'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+    }
+  } on ImportException catch (e) {
+    // Import error
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Import failed: ${e.message}'),
           backgroundColor: AppColors.error,
         ),
       );

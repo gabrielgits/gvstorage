@@ -9,7 +9,7 @@ import '../../models/models.dart';
 import '../../providers/asset_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../widgets/widgets.dart';
-import '../../main.dart' show handleExportAllData;
+import '../../main.dart' show handleExportAllData, handleImportAllData;
 
 /// Home page - main landing page of the application
 class HomePage extends StatefulWidget {
@@ -70,6 +70,7 @@ class _HomePageState extends State<HomePage> {
           onNavigate: (route) => context.go(route),
           onUploadTap: () => context.go('/upload'),
           onExportAllData: handleExportAllData,
+          onImportAllData: handleImportAllData,
           scrollController: _scrollController,
           body: isLoading
               ? const Center(child: CircularProgressIndicator())

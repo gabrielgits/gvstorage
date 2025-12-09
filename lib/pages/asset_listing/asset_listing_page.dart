@@ -10,10 +10,11 @@ import '../../models/category.dart';
 import '../../providers/asset_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/filter_provider.dart';
+import '../../providers/search_provider.dart';
 import '../../widgets/asset/asset_grid.dart';
 import '../../widgets/common/common.dart';
 import '../../widgets/layout/layout.dart';
-import '../../main.dart' show handleExportAllData;
+import '../../main.dart' show handleExportAllData, handleImportAllData;
 
 /// Asset listing page with filters and pagination
 class AssetListingPage extends StatefulWidget {
@@ -31,8 +32,10 @@ class AssetListingPage extends StatefulWidget {
 class _AssetListingPageState extends State<AssetListingPage> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   Category? _currentCategory;
   bool _dataLoaded = false;
+  bool _isSearchMode = false;
 
   @override
   void didChangeDependencies() {
@@ -90,23 +93,63 @@ class _AssetListingPageState extends State<AssetListingPage> {
     );
   }
 
+  void _performSearch(String query) async {
+    final searchProvider = context.read<SearchProvider>();
+    final filterProvider = context.read<FilterProvider>();
+
+    if (query.isEmpty) {
+      setState(() => _isSearchMode = false);
+      searchProvider.clearSearch();
+      await _loadData();
+      return;
+    }
+
+    setState(() => _isSearchMode = true);
+    await searchProvider.search(
+      query,
+      categoryId: filterProvider.categoryId,
+      sortBy: filterProvider.sortBy,
+      limit: filterProvider.itemsPerPage,
+      offset: filterProvider.offset,
+    );
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    final searchProvider = context.read<SearchProvider>();
+    searchProvider.clearSearch();
+    setState(() => _isSearchMode = false);
+    _loadData();
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer3<AssetProvider, CategoryProvider, FilterProvider>(
-      builder: (context, assetProvider, categoryProvider, filterProvider, child) {
+    return Consumer4<AssetProvider, CategoryProvider, FilterProvider, SearchProvider>(
+      builder: (context, assetProvider, categoryProvider, filterProvider, searchProvider, child) {
+        // Determine which assets to display (search results or regular listing)
+        final displayAssets = _isSearchMode && searchProvider.hasQuery
+            ? searchProvider.searchResults
+            : assetProvider.allAssets;
+
+        final isLoading = _isSearchMode
+            ? searchProvider.isSearching
+            : assetProvider.isLoading;
         return AppScaffold(
           currentRoute: widget.categorySlug != null
               ? '/category/${widget.categorySlug}'
               : '/assets',
           onNavigate: (route) => context.go(route),
           onExportAllData: handleExportAllData,
+          onImportAllData: handleImportAllData,
           scrollController: _scrollController,
           sidebar: _buildSidebar(categoryProvider.categories),
           body: Column(
@@ -117,17 +160,21 @@ class _AssetListingPageState extends State<AssetListingPage> {
               const SizedBox(height: AppConstants.spacingMd),
 
               // Page header
-              _buildPageHeader(assetProvider.allAssets),
+              _buildPageHeader(displayAssets),
               const SizedBox(height: AppConstants.spacingLg),
 
+              // Search bar
+              _buildSearchBar(searchProvider),
+              const SizedBox(height: AppConstants.spacingMd),
+
               // Toolbar (sort, view mode)
-              _buildToolbar(assetProvider.allAssets, filterProvider),
+              _buildToolbar(displayAssets, filterProvider),
               const SizedBox(height: AppConstants.spacingLg),
 
               // Assets grid
-              assetProvider.isLoading
+              isLoading
                 ? _buildLoadingState()
-                : _buildAssetsGrid(assetProvider.allAssets, filterProvider.viewMode),
+                : _buildAssetsGrid(displayAssets, filterProvider.viewMode),
               const SizedBox(height: AppConstants.spacingXl),
             ],
           ),
@@ -155,6 +202,60 @@ class _AssetListingPageState extends State<AssetListingPage> {
     return Breadcrumbs(items: items);
   }
 
+  Widget _buildSearchBar(SearchProvider searchProvider) {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingSm),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              decoration: InputDecoration(
+                hintText: 'Search assets by title or description...',
+                hintStyle: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textHint,
+                ),
+                border: InputBorder.none,
+                prefixIcon: const Icon(Icons.search, color: AppColors.textHint),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: AppColors.textHint),
+                        onPressed: _clearSearch,
+                        tooltip: 'Clear search',
+                      )
+                    : null,
+              ),
+              style: AppTextStyles.bodyMedium,
+              onSubmitted: _performSearch,
+              onChanged: (value) {
+                setState(() {}); // Rebuild to show/hide clear button
+              },
+            ),
+          ),
+          const SizedBox(width: AppConstants.spacingSm),
+          ElevatedButton.icon(
+            onPressed: () => _performSearch(_searchController.text),
+            icon: const Icon(Icons.search, size: 20),
+            label: const Text('Search'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.spacingMd,
+                vertical: AppConstants.spacingSm,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPageHeader(List<Asset> assets) {
     return Row(
       children: [
@@ -170,7 +271,9 @@ class _AssetListingPageState extends State<AssetListingPage> {
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    '${assets.length} assets found',
+                    _isSearchMode
+                        ? '${assets.length} search results'
+                        : '${assets.length} assets found',
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -333,28 +436,37 @@ class _AssetListingPageState extends State<AssetListingPage> {
         child: Column(
           children: [
             Icon(
-              Icons.folder_zip_outlined,
+              _isSearchMode ? Icons.search_off : Icons.folder_zip_outlined,
               size: 64,
               color: AppColors.textHint.withValues(alpha: 0.5),
             ),
             const SizedBox(height: AppConstants.spacingMd),
             Text(
-              'No assets found',
+              _isSearchMode ? 'No search results' : 'No assets found',
               style: AppTextStyles.titleLarge,
             ),
             const SizedBox(height: AppConstants.spacingSm),
             Text(
-              'Try adjusting your search or upload a new asset',
+              _isSearchMode
+                  ? 'Try different search terms or clear your search'
+                  : 'Try adjusting your filters or upload a new asset',
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: AppConstants.spacingLg),
-            ElevatedButton.icon(
-              onPressed: () => context.go('/upload'),
-              icon: const Icon(Icons.upload_file),
-              label: const Text('Upload Asset'),
-            ),
+            if (_isSearchMode)
+              OutlinedButton.icon(
+                onPressed: _clearSearch,
+                icon: const Icon(Icons.clear),
+                label: const Text('Clear Search'),
+              )
+            else
+              ElevatedButton.icon(
+                onPressed: () => context.go('/upload'),
+                icon: const Icon(Icons.upload_file),
+                label: const Text('Upload Asset'),
+              ),
           ],
         ),
       ),

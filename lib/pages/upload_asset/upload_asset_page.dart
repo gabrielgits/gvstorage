@@ -15,7 +15,7 @@ import '../../providers/upload_provider.dart';
 import '../../services/service_locator.dart';
 import '../../widgets/common/common.dart';
 import '../../widgets/layout/layout.dart';
-import '../../main.dart' show handleExportAllData;
+import '../../main.dart' show handleExportAllData, handleImportAllData;
 
 /// Upload asset page with multi-step form
 class UploadAssetPage extends StatefulWidget {
@@ -119,6 +119,7 @@ class _UploadAssetPageState extends State<UploadAssetPage> {
           onNavigate: (route) => context.go(route),
           onUploadTap: () => context.go('/upload'),
           onExportAllData: handleExportAllData,
+          onImportAllData: handleImportAllData,
           scrollController: _scrollController,
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

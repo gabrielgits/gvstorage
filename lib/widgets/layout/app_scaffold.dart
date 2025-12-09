@@ -13,6 +13,7 @@ class AppScaffold extends StatelessWidget {
   final Function(String)? onNavigate;
   final VoidCallback? onUploadTap;
   final VoidCallback? onExportAllData;
+  final VoidCallback? onImportAllData;
   final ScrollController? scrollController;
 
   const AppScaffold({
@@ -24,6 +25,7 @@ class AppScaffold extends StatelessWidget {
     this.onNavigate,
     this.onUploadTap,
     this.onExportAllData,
+    this.onImportAllData,
     this.scrollController,
   });
 
@@ -39,6 +41,7 @@ class AppScaffold extends StatelessWidget {
             onNavigate: onNavigate,
             onUploadTap: onUploadTap,
             onExportAllData: onExportAllData,
+            onImportAllData: onImportAllData,
           ),
 
           // Main content

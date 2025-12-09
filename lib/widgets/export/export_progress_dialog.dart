@@ -65,7 +65,7 @@ class _ExportProgressDialogState extends State<ExportProgressDialog> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withAlpha((255 * 0.1).round()),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(

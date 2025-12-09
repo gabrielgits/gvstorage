@@ -101,7 +101,7 @@ class _ExportAllDialogState extends State<ExportAllDialog> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withAlpha((255 * 0.1).round()),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -169,10 +169,10 @@ class _ExportAllDialogState extends State<ExportAllDialog> {
                       Container(
                         padding: const EdgeInsets.all(AppConstants.spacingMd),
                         decoration: BoxDecoration(
-                          color: AppColors.warning.withOpacity(0.1),
+                          color: AppColors.warning.withAlpha((255 * 0.1).round()),
                           borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                           border: Border.all(
-                            color: AppColors.warning.withOpacity(0.3),
+                            color: AppColors.warning.withAlpha((255 * 0.3).round()),
                           ),
                         ),
                         child: Row(

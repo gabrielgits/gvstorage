@@ -8,6 +8,7 @@ import 'asset_service.dart';
 import 'category_service.dart';
 import 'search_service.dart';
 import 'export_service.dart';
+import 'import_service.dart';
 
 /// Service locator for dependency injection
 class ServiceLocator {
@@ -23,6 +24,7 @@ class ServiceLocator {
   late CategoryService category;
   late SearchService search;
   late ExportService export;
+  late ImportService import;
 
   bool _initialized = false;
 
@@ -61,6 +63,7 @@ class ServiceLocator {
     category = CategoryService(database);
     search = SearchService(database);
     export = ExportService(database, storage, zip, asset, category);
+    import = ImportService(database, storage, zip, asset);
 
     _initialized = true;
     if (kDebugMode) {

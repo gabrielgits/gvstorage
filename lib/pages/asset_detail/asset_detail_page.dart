@@ -13,7 +13,7 @@ import '../../widgets/asset/asset_grid.dart';
 import '../../widgets/asset/asset_image_gallery.dart';
 import '../../widgets/common/common.dart';
 import '../../widgets/layout/layout.dart';
-import '../../main.dart' show handleExportAllData;
+import '../../main.dart' show handleExportAllData, handleImportAllData;
 
 /// Asset detail page with full asset information
 class AssetDetailPage extends StatefulWidget {
@@ -153,6 +153,7 @@ class _AssetDetailPageState extends State<AssetDetailPage>
         if (isLoading && !_dataLoaded) {
           return const AppScaffold(
             onExportAllData: handleExportAllData,
+          onImportAllData: handleImportAllData,
             body: Center(child: CircularProgressIndicator()),
           );
         }
@@ -160,6 +161,7 @@ class _AssetDetailPageState extends State<AssetDetailPage>
         if (_asset == null) {
           return AppScaffold(
             onExportAllData: handleExportAllData,
+          onImportAllData: handleImportAllData,
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -178,6 +180,7 @@ class _AssetDetailPageState extends State<AssetDetailPage>
 
         return AppScaffold(
             onExportAllData: handleExportAllData,
+          onImportAllData: handleImportAllData,
           currentRoute: '/asset/${_asset!.slug}',
           onNavigate: (route) => context.go(route),
           scrollController: _scrollController,

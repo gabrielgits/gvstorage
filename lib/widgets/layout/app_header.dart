@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/app_constants.dart';
+import '../../models/category.dart';
+import '../../services/service_locator.dart';
 
 /// Main application header with navigation and search
-class AppHeader extends StatelessWidget implements PreferredSizeWidget {
+class AppHeader extends StatefulWidget implements PreferredSizeWidget {
   final VoidCallback? onMenuTap;
   final VoidCallback? onUploadTap;
   final VoidCallback? onSearchTap;
   final VoidCallback? onExportAllData;
+  final VoidCallback? onImportAllData;
   final String? currentRoute;
   final Function(String)? onNavigate;
 
@@ -18,14 +21,47 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.onUploadTap,
     this.onSearchTap,
     this.onExportAllData,
+    this.onImportAllData,
     this.currentRoute,
     this.onNavigate,
   });
 
-  bool get _isUploadRoute => currentRoute == '/upload';
+  @override
+  State<AppHeader> createState() => _AppHeaderState();
 
   @override
   Size get preferredSize => const Size.fromHeight(AppConstants.headerHeight);
+}
+
+class _AppHeaderState extends State<AppHeader> {
+  List<Category> _topCategories = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTopCategories();
+  }
+
+  Future<void> _loadTopCategories() async {
+    try {
+      final categories = await services.category.getCategories();
+      if (mounted) {
+        setState(() {
+          _topCategories = categories.take(3).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  bool get _isUploadRoute => widget.currentRoute == '/upload';
 
   @override
   Widget build(BuildContext context) {
@@ -52,10 +88,6 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
             // Navigation
             Expanded(child: _buildNavigation()),
 
-            // Search bar
-            _buildSearchBar(),
-            const SizedBox(width: AppConstants.spacingMd),
-
             // File menu
             _buildFileMenu(),
             const SizedBox(width: AppConstants.spacingSm),
@@ -71,7 +103,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   Widget _buildFileMenu() {
     return PopupMenuButton<String>(
       icon: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppConstants.radiusSm),
@@ -80,16 +112,28 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
         child: const Icon(
           Icons.menu,
           color: AppColors.textPrimary,
-          size: 20,
+          size: 24,
         ),
       ),
       tooltip: 'File Menu',
       onSelected: (value) {
         if (value == 'export_all') {
-          onExportAllData?.call();
+          widget.onExportAllData?.call();
+        } else if (value == 'import_all') {
+          widget.onImportAllData?.call();
         }
       },
       itemBuilder: (context) => [
+        const PopupMenuItem<String>(
+          value: 'import_all',
+          child: Row(
+            children: [
+              Icon(Icons.download, size: 20, color: AppColors.primary),
+              SizedBox(width: AppConstants.spacingSm),
+              Text('Import All Data'),
+            ],
+          ),
+        ),
         const PopupMenuItem<String>(
           value: 'export_all',
           child: Row(
@@ -120,7 +164,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () => onNavigate?.call('/'),
+        onTap: () => widget.onNavigate?.call('/'),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -153,46 +197,35 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   }
 
   Widget _buildNavigation() {
+    if (_isLoading) {
+      return const Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: AppConstants.navigationItems.map((item) {
-        final isActive = currentRoute == item['route'];
-        return _NavItem(
-          title: item['title']!,
-          isActive: isActive,
-          onTap: () => onNavigate?.call(item['route']!),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Container(
-      width: 280,
-      height: 40,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: TextField(
-        decoration: InputDecoration(
-          hintText: 'Search assets...',
-          hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint),
-          prefixIcon: const Icon(
-            Icons.search,
-            color: AppColors.textHint,
-            size: 20,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 10,
-          ),
+      children: [
+        // All Assets link
+        _NavItem(
+          title: 'All Assets',
+          isActive: widget.currentRoute == '/assets',
+          onTap: () => widget.onNavigate?.call('/assets'),
         ),
-        style: AppTextStyles.bodyMedium,
-        onTap: onSearchTap,
-      ),
+        // First 3 categories
+        ..._topCategories.map((category) {
+          final route = '/category/${category.slug}';
+          return _NavItem(
+            title: category.name,
+            isActive: widget.currentRoute == route,
+            onTap: () => widget.onNavigate?.call(route),
+          );
+        }),
+      ],
     );
   }
 
@@ -200,7 +233,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: _isUploadRoute ? null : onUploadTap,
+        onTap: _isUploadRoute ? null : widget.onUploadTap,
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppConstants.spacingMd,

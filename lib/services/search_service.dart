@@ -25,15 +25,13 @@ class SearchService {
     final whereClauses = <String>[];
     final whereArgs = <dynamic>[];
 
-    // Full-text search
+    // Full-text search using LIKE for reliable results
+    // FTS5 can be problematic, so we use a simpler LIKE-based search
     if (query.isNotEmpty) {
-      whereClauses.add('''
-        assets.rowid IN (
-          SELECT rowid FROM assets_fts
-          WHERE assets_fts MATCH ?
-        )
-      ''');
-      whereArgs.add(query);
+      final searchPattern = '%${query.trim()}%';
+      whereClauses.add('(assets.title LIKE ? OR assets.description LIKE ?)');
+      whereArgs.add(searchPattern);
+      whereArgs.add(searchPattern);
     }
 
     // Category filter

@@ -74,7 +74,7 @@ class ExportCompleteDialog extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(0.1),
+              color: AppColors.success.withAlpha((255 * 0.1).round()),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -168,10 +168,10 @@ class ExportCompleteDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppConstants.spacingMd),
               decoration: BoxDecoration(
-                color: AppColors.info.withOpacity(0.1),
+                color: AppColors.info.withAlpha((255 * 0.1).round()),
                 borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                 border: Border.all(
-                  color: AppColors.info.withOpacity(0.3),
+                  color: AppColors.info.withAlpha((255 * 0.3).round()),
                 ),
               ),
               child: Row(
