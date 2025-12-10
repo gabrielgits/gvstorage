@@ -48,7 +48,7 @@ class StorageService {
     await _ensureDirectoryExists(categoryDir);
 
     // Define destination path
-    final destPath = path_pkg.join(categoryDir.path, '$assetId.zip');
+    final destPath = path_pkg.join(categoryDir.path, '$assetId.dll');
 
     // Copy file to destination
     final destFile = await sourceZip.copy(destPath);

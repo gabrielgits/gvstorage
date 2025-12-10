@@ -11,7 +11,7 @@ class AuthProvider extends ChangeNotifier {
   String _pinInput = '';
 
   // TODO: Replace with actual stored PIN from settings/database
-  static const String _storedPin = '2856';
+  static const String _storedPin = '1993';
 
   // Getters
   bool get isAuthenticated => _isAuthenticated;
